@@ -139,94 +139,136 @@ namespace PptToDocConverter
 
             if (options.Headings)
             {
-                if (!string.IsNullOrEmpty(newTitle) && newTitle.ToLower() != currentTitle.ToLower())
+                try
                 {
-                    // main title has changed, insert a new heading 1
-                    currentTitle = newTitle;
-                    var par = doc.Paragraphs.Add();
-                    par.Range.Select();
-                    par.Range.Text = title;
-                    par.set_Style(DOC.WdBuiltinStyle.wdStyleHeading1);
-                    par.Range.InsertParagraphAfter();
-                }
 
-                if (!string.IsNullOrEmpty(newSubtitle) && newSubtitle.ToLower() != currentSubTitle.ToLower())
+
+                    if (!string.IsNullOrEmpty(newTitle) && newTitle.ToLower() != currentTitle.ToLower())
+                    {
+                        // main title has changed, insert a new heading 1
+                        currentTitle = newTitle;
+                        var par = doc.Paragraphs.Add();
+                        par.Range.Select();
+                        par.Range.Text = title;
+                        par.set_Style(DOC.WdBuiltinStyle.wdStyleHeading1);
+                        par.Range.InsertParagraphAfter();
+                    }
+
+                    if (!string.IsNullOrEmpty(newSubtitle) && newSubtitle.ToLower() != currentSubTitle.ToLower())
+                    {
+                        // subtitle has changed, insert a new heading 2
+                        currentSubTitle = newSubtitle;
+                        var par = doc.Paragraphs.Add();
+                        par.Range.Select();
+                        par.Range.Text = currentSubTitle;
+                        par.set_Style(DOC.WdBuiltinStyle.wdStyleHeading2);
+                        par.Range.InsertParagraphAfter();
+                    }
+                }
+                catch (Exception ex)
                 {
-                    // subtitle has changed, insert a new heading 2
-                    currentSubTitle = newSubtitle;
-                    var par = doc.Paragraphs.Add();
-                    par.Range.Select();
-                    par.Range.Text = currentSubTitle;
-                    par.set_Style(DOC.WdBuiltinStyle.wdStyleHeading2);
-                    par.Range.InsertParagraphAfter();
+                    Console.WriteLine("");
+                    Console.WriteLine("WARNING: Writing headings failed. " + ex.Message);
+                    throw;
                 }
             }
 
             if (options.Slides)
             {
-                if (options.RemoveTheme)
+                try
                 {
-                    // delete everything from the master slide to remove the theme
-                    if (slide.Master.Shapes.Count > 0)
-                        slide.Master.Shapes.Range().Delete();
-                }
-
-                if (options.RemoveSlideNumbers)
-                {
-                    // search for all shapes that act as placeholder for a slide number and delete them
-                    for (int i = slide.Shapes.Count; i >= 1; i--)
+                    if (options.RemoveTheme)
                     {
-                        if (slide.Shapes[i].HasTextFrame != Microsoft.Office.Core.MsoTriState.msoFalse && slide.Shapes[i].TextFrame.HasText != Microsoft.Office.Core.MsoTriState.msoFalse)
+                        // delete everything from the master slide to remove the theme
+                        if (slide.Master.Shapes.Count > 0)
+                            slide.Master.Shapes.Range().Delete();
+                    }
+
+                    if (options.RemoveSlideNumbers)
+                    {
+                        // search for all shapes that act as placeholder for a slide number and delete them
+                        for (int i = slide.Shapes.Count; i >= 1; i--)
                         {
-                            try
+                            if (slide.Shapes[i].HasTextFrame != Microsoft.Office.Core.MsoTriState.msoFalse && slide.Shapes[i].TextFrame.HasText != Microsoft.Office.Core.MsoTriState.msoFalse)
                             {
-                                if (slide.Shapes[i].PlaceholderFormat.Type == PPT.PpPlaceholderType.ppPlaceholderSlideNumber)
-                                    slide.Shapes[i].Delete();
-                            }
-                            catch (Exception)
-                            {
-                                // silently fail if it's not a placeholder
+                                try
+                                {
+                                    if (slide.Shapes[i].PlaceholderFormat.Type == PPT.PpPlaceholderType.ppPlaceholderSlideNumber)
+                                        slide.Shapes[i].Delete();
+                                }
+                                catch (Exception)
+                                {
+                                    // silently fail if it's not a placeholder
+                                }
                             }
                         }
                     }
+
+                    // export the slide to an temp image
+                    var imgPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "slide.png");
+                    slide.Export(imgPath, "PNG", 1600, 1200);
+
+                    // crop if required
+                    if (options.CropWidth || options.CropHeight)
+                        CropSlideImage(imgPath, options);
+
+                    // insert the image in the word document
+                    var parImg = doc.Paragraphs.Add();
+                    parImg.Range.Select();
+                    parImg.Alignment = DOC.WdParagraphAlignment.wdAlignParagraphCenter;
+
+                    var pic = parImg.Range.InlineShapes.AddPicture(imgPath);
+                    pic.ScaleWidth = 35f;
+                    pic.ScaleHeight = 35f;
+
+                    parImg.Range.InsertParagraphAfter();
                 }
-
-                // export the slide to an temp image
-                var imgPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "slide.png");
-                slide.Export(imgPath, "PNG", 1600, 1200);
-
-                // crop if required
-                if (options.CropWidth || options.CropHeight)
-                    CropSlideImage(imgPath, options);
-
-                // insert the image in the word document
-                var parImg = doc.Paragraphs.Add();
-                parImg.Range.Select();
-                parImg.Alignment = DOC.WdParagraphAlignment.wdAlignParagraphCenter;
-
-                var pic = parImg.Range.InlineShapes.AddPicture(imgPath);
-                pic.ScaleWidth = 35f;
-                pic.ScaleHeight = 35f;
-
-                parImg.Range.InsertParagraphAfter();
+                catch (Exception ex)
+                {
+                    Console.WriteLine("");
+                    Console.WriteLine("WARNING: Exporting slide image failed. " + ex.Message);
+                    throw;
+                }
             }
 
             if (options.Notes && HasNotes(slide))
             {
-                // copy paste notes through the clipboard
-                var parNotes = doc.Paragraphs.Add();
-                for (int i = 1; i <= slide.NotesPage.Shapes.Count; i++)
+
+
+
+                try
                 {
-                    if (slide.NotesPage.Shapes[i].TextFrame.HasText != Microsoft.Office.Core.MsoTriState.msoFalse)
+                    // copy paste notes through the clipboard
+                    var parNotes = doc.Paragraphs.Add();
+
+                    for (int i = 1; i <= slide.NotesPage.Shapes.Count; i++)
                     {
-                        if (slide.NotesPage.Shapes[i].TextFrame.TextRange.Text.Length > 3)
+                        if (slide.NotesPage.Shapes[i].TextFrame.HasText != Microsoft.Office.Core.MsoTriState.msoFalse)
                         {
-                            slide.NotesPage.Shapes[i].TextFrame.TextRange.Copy();
-                            parNotes.Range.Paste();
+                            if (slide.NotesPage.Shapes[i].TextFrame.TextRange.Text.Length > 3)
+                            {
+                                try
+                                {
+                                    slide.NotesPage.Shapes[i].TextFrame.TextRange.Copy();
+                                    parNotes.Range.Paste();
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine("WARNING: Copying notes to clipboard failed. " + ex.Message);
+                                    Console.WriteLine("Falling back to copying over plain text");
+
+                                    parNotes.Range.InsertAfter(slide.NotesPage.Shapes[i].TextFrame.TextRange.Text);
+                                }
+                            }
                         }
                     }
+                    parNotes.Range.InsertParagraphAfter();
                 }
-                parNotes.Range.InsertParagraphAfter();
+                catch (Exception ex)
+                {
+                    Console.WriteLine("");
+                    Console.WriteLine("WARNING: Exporting notes failed. " + ex.Message);
+                }
             }
         }
 
@@ -252,7 +294,7 @@ namespace PptToDocConverter
                             break;
                         }
                     }
-                    
+
                     // scan right side until we encounter a non white pixel
                     for (int i = img.Width - 1; i >= 0; i--)
                     {
