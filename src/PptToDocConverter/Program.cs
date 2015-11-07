@@ -122,7 +122,7 @@ namespace PptToDocConverter
             string newSubtitle;
             if (title.Contains(options.TitleDelimiter))
             {
-                newTitle = title.Substring(0, title.IndexOf(options.TitleDelimiter));
+                newTitle = title.Substring(0, title.IndexOf(options.TitleDelimiter)).Trim();
                 newSubtitle = title.Substring(title.IndexOf(options.TitleDelimiter) + 1).Trim();
 
                 // case subtitle
@@ -131,7 +131,7 @@ namespace PptToDocConverter
             }
             else
             {
-                newTitle = title;
+                newTitle = title.Trim();
                 newSubtitle = "";
             }
 
