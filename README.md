@@ -1,6 +1,6 @@
 # Ppt To Doc Converter
 Converts powerpoints to word documents using COM Interop to provide more options than just printing with notes
-
+```
 USAGE:
 PptToDocConverter.exe -in <ppt(x)file> [-out <doc(x)file>] [OPTIONS...]
 OPTIONS:
@@ -26,3 +26,4 @@ Note: The conversion uses COM Office Interop (>= v12 or Office 2007)
       to copy the notes to the a paragraph in word and to ensure
       the formatting is kept. This means that during conversion you
       should refrain from changing the clipboard.
+```
